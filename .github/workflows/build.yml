@@ -1,0 +1,88 @@
+name: Build Portable Binaries
+
+on:
+  push:
+    tags:
+      - 'v*'               # запуск при создании тега вида v1.0.0
+  workflow_dispatch:       # возможность ручного запуска
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            artifact_name: kinescope-bot-linux
+            platform: linux
+          - os: windows-latest
+            artifact_name: kinescope-bot-windows.exe
+            platform: windows
+          - os: macos-latest
+            artifact_name: kinescope-bot-macos
+            platform: darwin
+          - os: macos-14       # Apple Silicon
+            artifact_name: kinescope-bot-macos-arm64
+            platform: darwin_arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'   # стабильная версия
+
+      - name: Install system dependencies (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-tk tk-dev
+
+      - name: Install system dependencies (macOS)
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          brew install tcl-tk
+          echo "TCL_LIBRARY=/opt/homebrew/Cellar/tcl-tk/9.0.1/lib/tcl9.0" >> $GITHUB_ENV
+          echo "TK_LIBRARY=/opt/homebrew/Cellar/tcl-tk/9.0.1/lib/tk9.0" >> $GITHUB_ENV
+        # Путь может меняться; лучше установить и найти:
+        # brew info tcl-tk | grep lib
+
+      - name: Install Python dependencies
+        run: |
+          pip install pyinstaller
+          pip install aiohttp customtkinter
+
+      - name: Build with PyInstaller
+        run: |
+          pyinstaller --onefile --name ${{ matrix.artifact_name }} --windowed GBOTV1.py
+        # --windowed скрывает консоль (для GUI)
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: dist/${{ matrix.artifact_name }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')   # только для тегов
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/kinescope-bot-linux/kinescope-bot-linux
+            artifacts/kinescope-bot-windows.exe/kinescope-bot-windows.exe
+            artifacts/kinescope-bot-macos/kinescope-bot-macos
+            artifacts/kinescope-bot-macos-arm64/kinescope-bot-macos-arm64
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
