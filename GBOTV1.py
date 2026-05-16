@@ -15,6 +15,7 @@ import threading
 import queue
 import json
 import os
+os.environ["CUSTOMTKINTER_FONT_SHAPES"] = "circle_shapes"
 import sys
 import uuid
 import time
