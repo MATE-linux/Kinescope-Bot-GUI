@@ -3,56 +3,94 @@ name: Build Portable Binaries
 on:
   push:
     tags:
-      - 'v*'
-  workflow_dispatch:
+      - 'v*'               # запуск при создании тега вида v1.0.0
+  workflow_dispatch:       # возможность ручного запуска
 
 jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-22.04, windows-latest, macos-latest, macos-14]
         include:
-          - os: ubuntu-22.04
+          - os: ubuntu-latest
             artifact_name: kinescope-bot-linux
             platform: linux
+            container_image: ubuntu:20.04
           - os: windows-latest
             artifact_name: kinescope-bot-windows.exe
             platform: windows
+            container_image: ''
           - os: macos-latest
             artifact_name: kinescope-bot-macos
             platform: darwin
+            container_image: ''
           - os: macos-14
             artifact_name: kinescope-bot-macos-arm64
             platform: darwin_arm64
+            container_image: ''
     runs-on: ${{ matrix.os }}
+    container:
+      image: ${{ matrix.container_image }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      # ----- Linux (Ubuntu 20.04 внутри контейнера) -----
+      - name: Install system dependencies (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          apt-get update
+          apt-get install -y python3 python3-tk python3-pip tk-dev
+          python3 --version
+
+      - name: Install Python dependencies (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pyinstaller aiohttp customtkinter
+
+      - name: Build with PyInstaller (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          python3 -m PyInstaller --onefile --name ${{ matrix.artifact_name }} GBOTV1.py
+
+      # ----- Windows -----
+      - name: Set up Python (Windows)
+        if: matrix.platform == 'windows'
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install system dependencies (Linux)
-        if: matrix.platform == 'linux'
+      - name: Install Python dependencies (Windows)
+        if: matrix.platform == 'windows'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y python3-tk tk-dev
+          pip install pyinstaller aiohttp customtkinter
+
+      - name: Build with PyInstaller (Windows)
+        if: matrix.platform == 'windows'
+        run: |
+          pyinstaller --onefile --name ${{ matrix.artifact_name }} GBOTV1.py
+
+      # ----- macOS -----
+      - name: Set up Python (macOS)
+        if: startsWith(matrix.platform, 'darwin')
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
       - name: Install system dependencies (macOS)
-        if: startsWith(matrix.os, 'macos')
+        if: startsWith(matrix.platform, 'darwin')
         run: |
           brew install tcl-tk
           echo "TCL_LIBRARY=$(brew --prefix tcl-tk)/lib/tcl9.0" >> $GITHUB_ENV
           echo "TK_LIBRARY=$(brew --prefix tcl-tk)/lib/tk9.0" >> $GITHUB_ENV
 
-      - name: Install Python dependencies
+      - name: Install Python dependencies (macOS)
+        if: startsWith(matrix.platform, 'darwin')
         run: |
-          pip install pyinstaller
-          pip install aiohttp customtkinter
+          pip install pyinstaller aiohttp customtkinter
 
-      - name: Build with PyInstaller
+      - name: Build with PyInstaller (macOS)
+        if: startsWith(matrix.platform, 'darwin')
         run: |
           pyinstaller --onefile --name ${{ matrix.artifact_name }} GBOTV1.py
 
