@@ -37,6 +37,8 @@ jobs:
       # ----- Linux (Ubuntu 20.04 внутри контейнера) -----
       - name: Install system dependencies (Linux)
         if: matrix.platform == 'linux'
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: |
           apt-get update
           apt-get install -y python3 python3-tk python3-pip tk-dev
