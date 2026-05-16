@@ -64,11 +64,12 @@ jobs:
         with:
           name: ${{ matrix.artifact_name }}
           path: dist/${{ matrix.artifact_name }}
-
   release:
     needs: build
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')   # только для тегов
+    permissions:
+      contents: write        # <-- КЛЮЧЕВОЕ ДОБАВЛЕНИЕ
+    if: startsWith(github.ref, 'refs/tags/')
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -84,5 +85,8 @@ jobs:
             artifacts/kinescope-bot-macos/kinescope-bot-macos
             artifacts/kinescope-bot-macos-arm64/kinescope-bot-macos-arm64
           generate_release_notes: true
+          overwrite: true
+          # Необязательно: если хотите принудительно создать релиз, даже если тег существует
+          # make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
