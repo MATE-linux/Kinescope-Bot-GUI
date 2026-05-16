@@ -3,16 +3,16 @@ name: Build Portable Binaries
 on:
   push:
     tags:
-      - 'v*'               # запуск при создании тега вида v1.0.0
-  workflow_dispatch:       # возможность ручного запуска
+      - 'v*'
+  workflow_dispatch:
 
 jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-20.04, windows-latest, macos-latest, macos-14]
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-20.04
             artifact_name: kinescope-bot-linux
             platform: linux
           - os: windows-latest
@@ -21,7 +21,7 @@ jobs:
           - os: macos-latest
             artifact_name: kinescope-bot-macos
             platform: darwin
-          - os: macos-14       # Apple Silicon
+          - os: macos-14
             artifact_name: kinescope-bot-macos-arm64
             platform: darwin_arm64
     runs-on: ${{ matrix.os }}
@@ -32,7 +32,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'   # стабильная версия
+          python-version: '3.11'
 
       - name: Install system dependencies (Linux)
         if: matrix.platform == 'linux'
@@ -44,10 +44,8 @@ jobs:
         if: startsWith(matrix.os, 'macos')
         run: |
           brew install tcl-tk
-          echo "TCL_LIBRARY=/opt/homebrew/Cellar/tcl-tk/9.0.1/lib/tcl9.0" >> $GITHUB_ENV
-          echo "TK_LIBRARY=/opt/homebrew/Cellar/tcl-tk/9.0.1/lib/tk9.0" >> $GITHUB_ENV
-        # Путь может меняться; лучше установить и найти:
-        # brew info tcl-tk | grep lib
+          echo "TCL_LIBRARY=$(brew --prefix tcl-tk)/lib/tcl9.0" >> $GITHUB_ENV
+          echo "TK_LIBRARY=$(brew --prefix tcl-tk)/lib/tk9.0" >> $GITHUB_ENV
 
       - name: Install Python dependencies
         run: |
@@ -56,19 +54,19 @@ jobs:
 
       - name: Build with PyInstaller
         run: |
-          pyinstaller --onefile --name ${{ matrix.artifact_name }} --windowed GBOTV1.py
-        # --windowed скрывает консоль (для GUI)
+          pyinstaller --onefile --name ${{ matrix.artifact_name }} GBOTV1.py
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
           path: dist/${{ matrix.artifact_name }}
+
   release:
     needs: build
     runs-on: ubuntu-latest
     permissions:
-      contents: write        # <-- КЛЮЧЕВОЕ ДОБАВЛЕНИЕ
+      contents: write
     if: startsWith(github.ref, 'refs/tags/')
     steps:
       - name: Download all artifacts
@@ -86,7 +84,5 @@ jobs:
             artifacts/kinescope-bot-macos-arm64/kinescope-bot-macos-arm64
           generate_release_notes: true
           overwrite: true
-          # Необязательно: если хотите принудительно создать релиз, даже если тег существует
-          # make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
