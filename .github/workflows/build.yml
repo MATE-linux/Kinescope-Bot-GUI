@@ -57,7 +57,7 @@ jobs:
           FONT_PATH=$(python3 -c "import customtkinter, os; print(os.path.join(os.path.dirname(customtkinter.__file__), 'assets/fonts'))")
           python3 -m PyInstaller --onefile --name ${{ matrix.artifact_name }} \
             --add-data "$FONT_PATH:customtkinter/assets/fonts" \
-            GBOTV1.py
+            app/main.py
 
       # ----- Windows -----
       - name: Set up Python (Windows)
@@ -74,7 +74,7 @@ jobs:
       - name: Build with PyInstaller (Windows)
         if: matrix.platform == 'windows'
         run: |
-          pyinstaller --onefile --name ${{ matrix.artifact_name }} GBOTV1.py
+          pyinstaller --onefile --name ${{ matrix.artifact_name }} app/main.py
 
       # ----- macOS -----
       - name: Set up Python (macOS)
@@ -98,7 +98,7 @@ jobs:
       - name: Build with PyInstaller (macOS)
         if: startsWith(matrix.platform, 'darwin')
         run: |
-          pyinstaller --onefile --name ${{ matrix.artifact_name }} GBOTV1.py
+          pyinstaller --onefile --name ${{ matrix.artifact_name }} app/main.py
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
